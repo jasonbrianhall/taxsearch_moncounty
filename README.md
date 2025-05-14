@@ -13,6 +13,7 @@ A command-line utility for searching and retrieving tax records from the Mononga
 - Automatic pagination handling for large result sets
 - Detailed logging for troubleshooting
 - Multiple filtering options (by year, property type, payment status)
+- Support for custom URLs to work with different county systems
 
 ## Requirements
 
@@ -78,6 +79,8 @@ python moncountysearch.py map --district "01" --map "123" --parcel "456" --outpu
 
 | Option | Description |
 |--------|-------------|
+| `--domain`, `-dm` | Domain to search (default: monongalia.softwaresystems.com) |
+| `--url`, `-u` | Full URL to search (default: https://monongalia.softwaresystems.com/SEARCH.html) |
 | `--output`, `-o` | Output file (supports .xlsx, .json, .csv, .txt) |
 | `--limit-year`, `-ly` | Limit search to specific tax year |
 | `--prop-type`, `-pt` | Property type: B=Both, R=Real, P=Personal (default: B) |
@@ -102,6 +105,16 @@ python moncountysearch.py name "SMITH JANE" --status "U" --output unpaid.xlsx
 #### Limit number of pages retrieved
 ```
 python moncountysearch.py name "SMITH" --max-pages 5 --output smith_partial.xlsx
+```
+
+#### Use a different county system
+```
+python moncountysearch.py name "SMITH" --url "https://othercounty.softwaresystems.com/SEARCH.html" --output smith_other.xlsx
+```
+
+#### Use custom domain and URL path
+```
+python moncountysearch.py name "SMITH" --domain "othercounty.gov" --url "https://othercounty.gov/tax/SEARCH.html" --output smith_custom.xlsx
 ```
 
 #### Increase logging verbosity
@@ -155,6 +168,12 @@ The tool automatically creates detailed logs in the `logs` directory:
    - Large result sets can take time to process
    - Use `--max-pages` to limit the number of pages retrieved
 
+5. **URL/Domain Issues**
+   - If connecting to a different county system:
+     - Ensure the URL parameter ends with `SEARCH.html` or the tool will append it
+     - Make sure the domain parameter matches the actual domain for cookie setting
+     - Check logs for any connection errors
+
 ### Inspecting Log Files
 
 Use the inspect feature to check the contents of response logs:
@@ -162,13 +181,30 @@ Use the inspect feature to check the contents of response logs:
 python moncountysearch.py --inspect
 ```
 
+## Using with Multiple County Systems
+
+This tool can now work with different county systems that use the same software platform:
+
+1. **Default Configuration**: 
+   - Works with Monongalia County (WV) by default
+   - URL: https://monongalia.softwaresystems.com/SEARCH.html
+
+2. **Other Counties**:
+   - Use the `--url` parameter to specify a different county's search page
+   - Use the `--domain` parameter if cookie handling is required with the custom URL
+   - Example: `python moncountysearch.py name "SMITH" --url "https://othercounty.gov/tax/SEARCH.html" --domain "othercounty.gov"`
+
+3. **URL Handling**:
+   - If the provided URL doesn't end with "SEARCH.html", the tool will append it automatically
+   - The domain is extracted from the URL for cookie handling purposes
+
 ## License
 
 [MIT License](LICENSE)
 
 ## Disclaimer
 
-This tool is not affiliated with or endorsed by the Monongalia County Sheriff's Office. It is provided as-is with no warranty. Use at your own risk.
+This tool is not affiliated with or endorsed by the Monongalia County Sheriff's Office or any other county government. It is provided as-is with no warranty. Use at your own risk.
 
 ## Contributing
 
