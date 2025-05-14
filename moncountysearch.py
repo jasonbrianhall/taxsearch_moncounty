@@ -47,7 +47,8 @@ def setup_logging(debug_level):
     
     return logging.getLogger('tax_search')
 
-def initialize_session(domain, logger):
+
+def initialize_session(domain, logger, url=None):
     """Initialize a session with required cookies"""
     session = requests.Session()
     session.verify = False  # Disable SSL certificate verification
@@ -100,7 +101,7 @@ def initialize_session(domain, logger):
     
     return session
 
-def search_by_name(session, name, common_params, domain, logger, max_pages=None):
+def search_by_name(session, name, common_params, domain, logger, max_pages=None, url=None):
     """Search tax records by taxpayer name (last first)"""
     logger.info(f"Performing name search for: {name}")
     
@@ -117,9 +118,9 @@ def search_by_name(session, name, common_params, domain, logger, max_pages=None)
     apply_common_params(session, common_params, domain, logger)
     
     # Perform the search and handle pagination
-    return perform_search_with_pagination(session, payload, domain, logger, max_pages)
+    return perform_search_with_pagination(session, payload, domain, logger, max_pages, url)
 
-def search_by_account(session, account_number, common_params, domain, logger, max_pages=None):
+def search_by_account(session, account_number, common_params, domain, logger, max_pages=None, url=None):
     """Search tax records by account number"""
     logger.info(f"Performing account search for: {account_number}")
     
@@ -136,9 +137,9 @@ def search_by_account(session, account_number, common_params, domain, logger, ma
     apply_common_params(session, common_params, domain, logger)
     
     # Perform the search and handle pagination
-    return perform_search_with_pagination(session, payload, domain, logger, max_pages)
+    return perform_search_with_pagination(session, payload, domain, logger, max_pages, url)
 
-def search_by_ticket(session, year, ticket_number, suffix, common_params, domain, logger, max_pages=None):
+def search_by_ticket(session, year, ticket_number, suffix, common_params, domain, logger, max_pages=None, url=None):
     """Search tax records by tax year and ticket number"""
     logger.info(f"Performing ticket search for year: {year}, ticket: {ticket_number}, suffix: {suffix}")
     
@@ -159,9 +160,9 @@ def search_by_ticket(session, year, ticket_number, suffix, common_params, domain
     apply_common_params(session, common_params, domain, logger)
     
     # Perform the search and handle pagination
-    return perform_search_with_pagination(session, payload, domain, logger, max_pages)
+    return perform_search_with_pagination(session, payload, domain, logger, max_pages, url)
 
-def search_by_map(session, district, map_num, parcel, sub_parcel, common_params, domain, logger, max_pages=None):
+def search_by_map(session, district, map_num, parcel, sub_parcel, common_params, domain, logger, max_pages=None, url=None):
     """Search tax records by district, map, parcel, and sub-parcel"""
     logger.info(f"Performing map search with district: {district}, map: {map_num}, "
                 f"parcel: {parcel}, sub-parcel: {sub_parcel}")
@@ -185,8 +186,8 @@ def search_by_map(session, district, map_num, parcel, sub_parcel, common_params,
     apply_common_params(session, common_params, domain, logger)
     
     # Perform the search and handle pagination
-    return perform_search_with_pagination(session, payload, domain, logger, max_pages)
-
+    return perform_search_with_pagination(session, payload, domain, logger, max_pages, url)
+    
 def apply_common_params(session, params, domain, logger):
     """Apply common search parameters to the session cookies and payload"""
     # Map parameter names to cookie names
@@ -217,7 +218,7 @@ def apply_common_params(session, params, domain, logger):
                     # Also set SDIST for forms that use it
                     session.cookies.set('SDIST', value, domain=domain, path='/')
 
-def perform_search_with_pagination(session, initial_payload, domain, logger, max_pages=None):
+def perform_search_with_pagination(session, initial_payload, domain, logger, max_pages=None, url=None):
     """Perform a search and handle pagination"""
     logger.info(f"Starting search with pagination (max_pages={max_pages})")
     
@@ -243,7 +244,7 @@ def perform_search_with_pagination(session, initial_payload, domain, logger, max
     session.cookies.set('SPAGE', str(current_page), domain=domain, path='/')
     
     # Get first page of results
-    response = perform_search(session, initial_payload, domain, logger)
+    response = perform_search(session, initial_payload, domain, logger, url)
     if not response:
         logger.error("Initial search failed")
         return "Search failed - no response from server"
@@ -287,7 +288,7 @@ def perform_search_with_pagination(session, initial_payload, domain, logger, max
         next_payload = {'TASK': 'NEXT'}
         
         # Get the next page of results
-        response = perform_search(session, next_payload, domain, logger)
+        response = perform_search(session, next_payload, domain, logger, url)
         if not response:
             logger.error(f"Failed to get page {current_page}")
             break
@@ -312,9 +313,18 @@ def perform_search_with_pagination(session, initial_payload, domain, logger, max
     # Return the combined results with headers
     return {"headers": headers, "data": all_results, "pagination": {"current_page": current_page, "total_pages": total_pages}}
 
-def perform_search(session, payload, domain, logger):
+def perform_search(session, payload, domain, logger, url=None):
     """Execute the search with the provided payload"""
-    url = f"https://{domain}/SEARCH.html"
+    # Use the provided URL if available, otherwise construct using domain
+    if url:
+        if "SEARCH.html" not in url:
+            # If URL doesn't end with SEARCH.html, we'll append it
+            if url.endswith('/'):
+                url = f"{url}SEARCH.html"
+            else:
+                url = f"{url}/SEARCH.html"
+    else:
+        url = f"https://{domain}/SEARCH.html"
     
     logger.debug(f"Request URL: {url}")
     logger.debug(f"Request Payload: {json.dumps(payload, indent=2)}")
@@ -578,6 +588,8 @@ def main():
     # Add common arguments to the main parser
     parser.add_argument('--domain', '-dm', default='monongalia.softwaresystems.com',
                       help='Domain to search (default: monongalia.softwaresystems.com)')
+    parser.add_argument('--url', '-u', default='https://monongalia.softwaresystems.com/SEARCH.html',
+                      help='Full URL to search (default: https://monongalia.softwaresystems.com/SEARCH.html)')
     parser.add_argument('--output', '-o', help='Output file for results (supports .xlsx, .json, .csv, .txt)')
     parser.add_argument('--debug', '-v', action='count', default=0, 
                       help='Increase verbosity (use -v, -vv for more detailed logging)')
@@ -664,24 +676,41 @@ def main():
         'district': args.district,  # Add district to common params
     }
     
-    print(f"Starting search... (Type: {args.search_type}, Domain: {args.domain})")
+    print(f"Starting search... (Type: {args.search_type}, URL: {args.url})")
     
     # Perform the appropriate search based on the arguments
     if args.search_type == 'name':
-        results = search_by_name(session, args.name, common_params, args.domain, logger, args.max_pages)
+        results = search_by_name(session, args.name, common_params, args.domain, logger, args.max_pages, args.url)
     elif args.search_type == 'account':
-        results = search_by_account(session, args.account, common_params, args.domain, logger, args.max_pages)
+        results = search_by_account(session, args.account, common_params, args.domain, logger, args.max_pages, args.url)
     elif args.search_type == 'ticket':
-        results = search_by_ticket(session, args.year, args.ticket, args.suffix, common_params, args.domain, logger, args.max_pages)
+        results = search_by_ticket(session, args.year, args.ticket, args.suffix, common_params, args.domain, logger, args.max_pages, args.url)
     elif args.search_type == 'map':
         results = search_by_map(
             session, args.district, args.map, args.parcel, args.subparcel,
-            common_params, args.domain, logger, args.max_pages
+            common_params, args.domain, logger, args.max_pages, args.url
         )
     else:
         logger.error(f"Unknown search type: {args.search_type}")
         parser.print_help()
         return
+    
+    # Save results to a file if output file was specified
+    if args.output and results:
+        if save_results_to_file(results, args.output, logger):
+            print(f"\nResults saved to {args.output}")
+        else:
+            print("\nFailed to save results. See log for details.")
+    elif isinstance(results, dict) and 'data' in results:
+        # Display summary of results
+        print(f"\nFound {len(results['data'])} records")
+        if results['pagination']['total_pages'] > 1:
+            print(f"Showing page {results['pagination']['current_page']} of {results['pagination']['total_pages']}")
+            if args.max_pages and results['pagination']['current_page'] < results['pagination']['total_pages']:
+                print(f"Note: Only retrieved {args.max_pages} of {results['pagination']['total_pages']} total pages")
+    else:
+        # Just print the results (likely an error message)
+        print(f"\n{results}")
 
 if __name__ == "__main__":
     try:
