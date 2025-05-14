@@ -206,13 +206,16 @@ def apply_common_params(session, params, logger):
                 logger.debug(f"Setting {cookie_name} cookie to '{value}'")
                 session.cookies.set(cookie_name, value, domain='monongalia.softwaresystems.com', path='/')
                 
-                # Also add to the URL payload if it has a special name
+                # Also add to the URL payload if needed
                 if param == 'limit_year':
                     session.cookies.set('lyear', value, domain='monongalia.softwaresystems.com', path='/')
                 elif param == 'prop_type':
                     session.cookies.set('rpb', value, domain='monongalia.softwaresystems.com', path='/')
                 elif param == 'status':
                     session.cookies.set('pub', value, domain='monongalia.softwaresystems.com', path='/')
+                elif param == 'district':
+                    # Also set SDIST for forms that use it
+                    session.cookies.set('SDIST', value, domain='monongalia.softwaresystems.com', path='/')
 
 def perform_search_with_pagination(session, initial_payload, logger, max_pages=None):
     """Perform a search and handle pagination"""
@@ -591,6 +594,7 @@ def main():
                       help='Property type: B=Both, R=Real, P=Personal')
     parser.add_argument('--status', '-st', choices=['B', 'P', 'U'], default='B',
                       help='Payment status: B=Both, P=Paid, U=Unpaid')
+    parser.add_argument('--district', '-d', help='Filter by district code (e.g., 01, 02, etc.)')
     
     # Create subparsers for the different search types
     subparsers = parser.add_subparsers(dest='search_type', help='Type of search to perform')
@@ -655,6 +659,7 @@ def main():
         'limit_year': args.limit_year,
         'prop_type': args.prop_type,
         'status': args.status,
+        'district': args.district,  # Add district to common params
     }
     
     print(f"Starting search... (Type: {args.search_type})")
