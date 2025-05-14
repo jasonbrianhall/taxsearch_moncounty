@@ -314,7 +314,7 @@ def perform_search_with_pagination(session, initial_payload, logger, max_pages=N
 
 def perform_search(session, payload, logger):
     """Execute the search with the provided payload"""
-    url = "https://marion.softwaresystems.com/SEARCH.html"
+    url = "http://marion.softwaresystems.com/SEARCH.html"
     
     logger.debug(f"Request URL: {url}")
     logger.debug(f"Request Payload: {json.dumps(payload, indent=2)}")
